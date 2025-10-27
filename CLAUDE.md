@@ -556,5 +556,165 @@ Para agilizar el trabajo de gabinete se ha desarrollado el comando \*\*P1\*\* en
 
 
 
+\#### P1\_v2.1.lsp (Versión 2.1 - DETECCIÓN AUTOMÁTICA DE VÉRTICE) ⭐ ACTUAL
+
+
+
+\*\*Propósito\*\*: Simplificación del flujo de trabajo mediante \*\*detección automática de polilínea 3D y vértice\*\*
+
+
+
+\*\*Mejora principal respecto a v2.0\*\*:
+
+
+
+En la v2.0, el usuario debía:
+
+1\. Seleccionar la polilínea 3D manualmente
+
+2\. Hacer click cerca del extremo
+
+3\. Insertar el bloque POZO
+
+
+
+En la v2.1, el usuario solo debe:
+
+1\. \*\*Hacer click cerca del vértice\*\* → El sistema detecta automáticamente la polilínea 3D más cercana
+
+2\. Insertar el bloque POZO
+
+
+
+\*\*Nuevas funcionalidades técnicas\*\*:
+
+
+
+1\. \*\*Búsqueda eficiente de polilíneas 3D\*\*:
+
+&nbsp;   - El sistema busca entre las polilíneas 3D del dibujo
+
+&nbsp;   - No requiere que el usuario identifique o seleccione cuál es la correcta
+
+&nbsp;   - Detecta automáticamente cuál tiene un vértice exactamente en el punto del click
+
+&nbsp;   - Se detiene cuando encuentra la primera coincidencia (optimización de rendimiento)
+
+
+
+2\. \*\*Detección automática de vértice mediante OSNAP\*\*:
+
+&nbsp;   - Asume que el usuario tiene OSNAP activado (Endpoint, Vertex, Node)
+
+&nbsp;   - El click del usuario está exactamente en el vértice gracias a OSNAP
+
+&nbsp;   - Busca eficientemente qué polilínea 3D tiene un vértice en ese punto exacto
+
+&nbsp;   - Usa tolerancia de 1mm para comparar coordenadas (evita errores de punto flotante)
+
+&nbsp;   - Mucho más rápido que calcular distancias a todos los vértices
+
+
+
+3\. \*\*Feedback informativo mejorado\*\*:
+
+&nbsp;   - Aviso inicial: "⚠️ IMPORTANTE: Asegúrate de tener OSNAP activado (Endpoint, Vertex, Node)"
+
+&nbsp;   - Muestra qué vértice fue detectado: "✓ Detectada polilínea 3D - Vértice #0"
+
+&nbsp;   - Confirma cuando la Z es ajustada: "✓ Z del vértice ajustada a 105.48m"
+
+&nbsp;   - Si OSNAP no está activado, avisa: "¿Tienes OSNAP activado? Verifica Endpoint/Vertex/Node"
+
+&nbsp;   - Elimina la posibilidad de seleccionar la polilínea incorrecta
+
+
+
+\*\*Flujo de trabajo detallado\*\*:
+
+
+
+Para cada tubo del archivo CSV:
+
+1\. Sistema muestra información del tubo:
+
+&nbsp;   - ">>> TUBO 3 de 12 <<<"
+
+&nbsp;   - "POZO: P003 | Tubo 2/3 | Tipo: colector\_salida | Ø30cm"
+
+&nbsp;   - "Cota tapa: 107.78m | Profundidad: 2.30m → Cota tubo: 105.48m"
+
+
+
+2\. Usuario hace click cerca del vértice deseado
+
+
+
+3\. Sistema detecta y procesa automáticamente:
+
+&nbsp;   - Encuentra la polilínea 3D más cercana
+
+&nbsp;   - Identifica el vértice más cercano al click
+
+&nbsp;   - Ajusta la coordenada Z del vértice a la cota calculada
+
+&nbsp;   - Calcula el ángulo de orientación basándose en la tangente
+
+
+
+4\. Usuario hace click para insertar el bloque POZO
+
+
+
+5\. Sistema inserta el bloque con atributos ya rellenos y continúa con el siguiente tubo
+
+
+
+\*\*Ventajas clave de v2.1\*\*:
+
+\- ✅ \*\*Un click menos por tubo\*\*: Elimina el paso de seleccionar la polilínea
+
+\- ✅ \*\*Cero errores de selección\*\*: No hay riesgo de seleccionar la polilínea equivocada
+
+\- ✅ \*\*Más rápido y eficiente\*\*: Búsqueda optimizada por comparación de coordenadas exactas en lugar de calcular distancias
+
+\- ✅ \*\*Más intuitivo\*\*: Solo hacer click en el vértice (con OSNAP), el sistema detecta todo automáticamente
+
+\- ✅ \*\*Escalable\*\*: Funciona igual de bien con 10 polilíneas que con 1000
+
+\- ✅ \*\*Mismo nivel de automatización\*\*: Mantiene todas las ventajas de v2.0 (lectura de CSV, cálculos automáticos, etc.)
+
+
+
+\*\*Uso recomendado\*\*: \*\*VERSIÓN RECOMENDADA\*\* para todos los proyectos. Es la evolución natural de la v2.0 con un flujo de trabajo más eficiente y menos propenso a errores.
+
+
+
+\*\*Requisitos\*\*:
+
+\- Archivos PRIMERA\_PASADA.txt y SEGUNDA\_PASADA.txt en la misma carpeta
+
+\- Formato CSV con separador de coma (,)
+
+\- Bloque "POZO" con atributos RESULTADO, DIAMETRODETUBO, NUMERODETUBOS
+
+\- Al menos una polilínea 3D dibujada por cada tubo antes de ejecutar el comando
+
+\- ⚠️ \*\*OSNAP activado\*\*: Es fundamental tener activados los modos Endpoint, Vertex o Node para que el click se "pegue" exactamente al vértice de la polilínea
+
+
+
+\*\*Comparación de velocidad\*\*:
+
+\- v1.0: ~2 minutos por tubo (entrada manual de datos + selección + inserción)
+
+\- v1.2: ~1 minuto por tubo (entrada manual en lote + selección + inserción)
+
+\- v2.0: ~30 segundos por tubo (lectura CSV + selección polilínea + click extremo + inserción)
+
+\- v2.1: ~20 segundos por tubo (lectura CSV + click vértice + inserción) 🚀
+
+
+
 ---
 
