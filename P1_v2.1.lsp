@@ -1,9 +1,10 @@
 ;;; ------------------------------------------------------------
-;;; P1_v2.1.lsp – Detección automática de vértice de polilínea 3D
+;;; P1_v2.1.lsp – Detección automática de vértice mediante OSNAP
 ;;; Basado en P1_v2.0.lsp
 ;;; Mejora: En lugar de seleccionar polilínea + click en extremo,
-;;;         solo se hace click cerca del vértice y se detecta automáticamente
-;;;         la polilínea 3D y el vértice más cercano
+;;;         solo se hace click en el vértice (con OSNAP activado)
+;;;         y se detecta automáticamente la polilínea 3D que contiene ese punto
+;;; Requisito: Usuario debe tener OSNAP activado (endpoint, vertex, node)
 ;;; Autor: Adaptado para Mario Galdámez – AutoCAD 2026
 ;;; ------------------------------------------------------------
 
@@ -92,79 +93,50 @@
 )
 
 ;; ========================================
-;; NUEVAS FUNCIONES PARA v2.1: DETECCIÓN AUTOMÁTICA DE VÉRTICE
+;; NUEVAS FUNCIONES PARA v2.1: DETECCIÓN POR OSNAP
 ;; ========================================
 
-(defun _find-closest-vertex-in-3dpoly (e pClick / verts minDist closestVertex closestIdx v pt dist idx)
-  ;; Dado un ename de polilínea 3D y un punto de click,
-  ;; retorna (vertex-ename . point) del vértice más cercano, y su índice
-  ;; Retorna: (idx vertex-ename . point) donde idx es 0-based
-  (setq verts (_3dpoly-vertices e))
-  (setq minDist 1e20)
-  (setq closestVertex nil)
-  (setq closestIdx -1)
-  (setq idx 0)
-
-  (foreach v verts
-    (setq pt (cdr v))
-    (setq dist (distance pClick pt))
-    (if (< dist minDist)
-      (progn
-        (setq minDist dist)
-        (setq closestVertex v)
-        (setq closestIdx idx)
-      )
-    )
-    (setq idx (+ idx 1))
-  )
-
-  (if closestVertex
-    (list closestIdx closestVertex)
-    nil
-  )
+(defun _points-equal? (p1 p2 tol)
+  ;; Compara dos puntos 3D con tolerancia
+  ;; Retorna T si están dentro de la tolerancia
+  (< (distance p1 p2) tol)
 )
 
-(defun _find-closest-3dpoly-vertex (pClick / ss i e result bestPoly bestVertex bestIdx bestDist vInfo vIdx vData pt dist)
-  ;; Busca TODAS las polilíneas 3D del dibujo y encuentra el vértice más cercano al punto de click
-  ;; Retorna: (polyline-ename vertex-index vertex-ename . vertex-point)
+(defun _find-3dpoly-with-vertex-at (pClick tolerance / ss i e verts v found foundPoly foundIdx foundVertex idx)
+  ;; Busca una polilínea 3D que tenga un vértice exactamente en el punto pClick
+  ;; Asume que el usuario usó OSNAP, por lo que pClick está en el vértice exacto
+  ;; Retorna: (polyline-ename vertex-index (vertex-ename . vertex-point))
   (setq ss (ssget "X" '((0 . "POLYLINE"))))
 
   (if (not ss)
     (progn
-      (prompt "\n**ERROR**: No hay polilíneas 3D en el dibujo.")
+      (prompt "\n**ERROR**: No hay polilíneas en el dibujo.")
       nil
     )
     (progn
-      (setq bestDist 1e20)
-      (setq bestPoly nil)
-      (setq bestVertex nil)
-      (setq bestIdx -1)
-
+      (setq found nil)
       (setq i 0)
-      (repeat (sslength ss)
+
+      (while (and (< i (sslength ss)) (not found))
         (setq e (ssname ss i))
 
         (if (_is-3dpoly? e)
           (progn
-            ;; Buscar vértice más cercano en esta polilínea
-            (setq vInfo (_find-closest-vertex-in-3dpoly e pClick))
+            ;; Obtener vértices de esta polilínea
+            (setq verts (_3dpoly-vertices e))
+            (setq idx 0)
 
-            (if vInfo
-              (progn
-                (setq vIdx (car vInfo))
-                (setq vData (cadr vInfo))
-                (setq pt (cdr vData))
-                (setq dist (distance pClick pt))
-
-                (if (< dist bestDist)
-                  (progn
-                    (setq bestDist dist)
-                    (setq bestPoly e)
-                    (setq bestVertex vData)
-                    (setq bestIdx vIdx)
-                  )
+            ;; Buscar si algún vértice coincide con pClick
+            (foreach v verts
+              (if (_points-equal? (cdr v) pClick tolerance)
+                (progn
+                  (setq foundPoly e)
+                  (setq foundIdx idx)
+                  (setq foundVertex v)
+                  (setq found T)
                 )
               )
+              (setq idx (+ idx 1))
             )
           )
         )
@@ -172,8 +144,8 @@
         (setq i (+ i 1))
       )
 
-      (if bestPoly
-        (list bestPoly bestIdx bestVertex)
+      (if found
+        (list foundPoly foundIdx foundVertex)
         nil
       )
     )
@@ -313,14 +285,15 @@
              i tubo id-pozo num-tubo total-tubos tipo-tubo diam-tubo
              cota-tapa prof-tubo cota-tubo
              precRes precDiam sRes sDiam sNum
-             pClick foundData e vIdx vData verts vStart vSecond vPenul vEnd
+             tolerance pClick foundData e vIdx vData verts vStart vSecond vPenul vEnd
              pStart pSecond pPenul pEnd isStart angRad insPt ok)
 
   (setq precRes 3)   ; decimales para 'resultado' en atributo
   (setq precDiam 2)  ; decimales para 'diametro' en atributo
+  (setq tolerance 0.001) ; tolerancia para comparar puntos (1mm)
 
   ;; ====== FASE 1: CARGA DE DATOS ======
-  (prompt "\n=== P1 v2.1: DETECCIÓN AUTOMÁTICA DE VÉRTICE ===")
+  (prompt "\n=== P1 v2.1: DETECCIÓN AUTOMÁTICA DE VÉRTICE CON OSNAP ===")
 
   ;; Solicitar archivo SEGUNDA_PASADA.txt
   (setq archivo-segunda (getfiled "Selecciona SEGUNDA_PASADA.txt" "" "txt" 8))
@@ -362,7 +335,8 @@
 
   ;; ====== FASE 2: PROCESAMIENTO DE TUBOS ======
   (prompt "\n\n=== FASE DE PROCESAMIENTO ===")
-  (prompt "\nAhora haz click cerca del vértice de cada tubo y luego en el punto de inserción.\n")
+  (prompt "\n⚠️ IMPORTANTE: Asegúrate de tener OSNAP activado (Endpoint, Vertex, Node)")
+  (prompt "\nAhora haz click EN el vértice de cada tubo (con OSNAP) y luego en el punto de inserción.\n")
 
   (setq i 1)
 
@@ -387,8 +361,8 @@
                     " | Profundidad: " (_rtosN prof-tubo precRes) "m"
                     " → Cota tubo: " (_rtosN cota-tubo precRes) "m"))
 
-    ;; ====== NUEVO MÉTODO v2.1: Click cerca del vértice ======
-    (prompt (strcat "\nHaz clic cerca del VÉRTICE al que quieres asignar Z=" (_rtosN cota-tubo precRes) "m: "))
+    ;; ====== MÉTODO v2.1: Click EN el vértice (con OSNAP) ======
+    (prompt (strcat "\nHaz click EN el VÉRTICE (con OSNAP) al que quieres asignar Z=" (_rtosN cota-tubo precRes) "m: "))
     (setq pClick (getpoint))
 
     (if (not pClick)
@@ -399,12 +373,13 @@
       )
     )
 
-    ;; Buscar la polilínea 3D y vértice más cercano
-    (setq foundData (_find-closest-3dpoly-vertex pClick))
+    ;; Buscar la polilínea 3D que tiene un vértice exactamente en pClick
+    (setq foundData (_find-3dpoly-with-vertex-at pClick tolerance))
 
     (if (not foundData)
       (progn
-        (prompt "\n**ERROR**: No se encontró ninguna polilínea 3D cercana. Saltando este tubo.")
+        (prompt "\n**ERROR**: No se encontró ninguna polilínea 3D con vértice en ese punto.")
+        (prompt "\n           ¿Tienes OSNAP activado? Verifica Endpoint/Vertex/Node.")
         (setq i (+ i 1))
         (continue)
       )
@@ -415,8 +390,7 @@
     (setq vIdx (nth 1 foundData))
     (setq vData (nth 2 foundData))
 
-    (prompt (strcat "\n✓ Detectada polilínea 3D - Vértice #" (itoa vIdx) " a "
-                    (_rtosN (distance pClick (cdr vData)) 2) "m del click"))
+    (prompt (strcat "\n✓ Detectada polilínea 3D - Vértice #" (itoa vIdx)))
 
     ;; Modificar Z del vértice encontrado
     (setq ok (_set-vertex-z (car vData) cota-tubo))
@@ -484,5 +458,5 @@
   (princ)
 )
 
-(princ "\nComando cargado: P1 v2.1 - Detección automática de vértice desde CSV.")
+(princ "\nComando cargado: P1 v2.1 - Detección de vértice con OSNAP desde CSV.")
 (princ)
