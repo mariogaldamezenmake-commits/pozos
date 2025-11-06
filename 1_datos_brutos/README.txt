@@ -2,10 +2,23 @@
 DATOS BRUTOS - LEVANTAMIENTO TOPOGRÁFICO
 ============================================
 
-Este directorio contiene los datos en bruto obtenidos en campo durante el levantamiento de pozos.
+Este directorio contiene datos en bruto obtenidos en campo durante el levantamiento de pozos.
+Los datos están organizados por CASOS, cada uno representando una topología diferente de red.
+
+============================================
+ESTRUCTURA DE CARPETAS
+============================================
+
+📁 1_datos_brutos/
+  📁 caso1/  → Red de saneamiento LINEAL (5 pozos)
+  📁 caso2/  → Red pluvial RADIAL (7 pozos)
+
+============================================
+FORMATO DE ARCHIVOS
+============================================
 
 -------------------------------------------
-PRIMERA_PASADA.txt
+PRIMERA_PASADA.txt / PRIMERA_PASADA_2.txt
 -------------------------------------------
 Levantamiento planialétrico y altimétrico
 Una fila por pozo
@@ -19,7 +32,7 @@ Columnas:
 6. OPERADOR         - Iniciales del técnico
 
 -------------------------------------------
-SEGUNDA_PASADA.txt
+SEGUNDA_PASADA.txt / SEGUNDA_PASADA_2.txt
 -------------------------------------------
 Caracterización detallada de pozos y tubos
 Una fila por tubo (los datos del pozo se repiten)
@@ -39,20 +52,71 @@ Columnas:
 12. OPERADOR        - Iniciales del técnico
 
 -------------------------------------------
-NOTAS SOBRE LOS DATOS
+CROQUIS_AUTOCAD.txt / CROQUIS_AUTOCAD_2.txt
 -------------------------------------------
+Esquema visual de la red con:
+- Diagrama de topología
+- Tabla de detalles por pozo
+- Instrucciones para dibujo en AutoCAD
+- Coordenadas 3D calculadas para polilíneas
 
-Red generada: 5 pozos de saneamiento (fecal) interconectados
+============================================
+DESCRIPCIÓN DE CASOS
+============================================
 
-P001 - Pozo de arranque: 1 tubo (solo salida)
-P002 - Pozo intermedio: 2 tubos (entrada + salida)
-P003 - Pozo con acometida: 3 tubos (entrada + salida + 1 acometida)
-P004 - Pozo intermedio: 2 tubos (entrada + salida)
-P005 - Pozo final: 4 tubos (entrada + salida + 2 acometidas)
+┌────────┬──────────────┬───────┬───────┬──────────┬──────────────────┐
+│  CASO  │   TOPOLOGÍA  │ POZOS │ TUBOS │   TIPO   │    DESCRIPCIÓN   │
+├────────┼──────────────┼───────┼───────┼──────────┼──────────────────┤
+│ caso1  │   LINEAL     │   5   │  12   │  FECAL   │ Red saneamiento  │
+│        │              │       │       │          │ con acometidas   │
+├────────┼──────────────┼───────┼───────┼──────────┼──────────────────┤
+│ caso2  │   RADIAL     │   7   │  12   │ PLUVIAL  │ Red drenaje con  │
+│        │              │       │       │          │ colector central │
+└────────┴──────────────┴───────┴───────┴──────────┴──────────────────┘
 
-La profundidad del arenero y de los tubos aumenta progresivamente 
-siguiendo la pendiente natural del terreno para permitir el flujo por gravedad.
+-------------------------------------------
+CASO 1: Red de saneamiento lineal
+-------------------------------------------
+- P001 → P002 → P003 → P004 → P005
+- Pozo de arranque + pozos intermedios + acometidas laterales
+- Flujo por gravedad descendente
+- Colector principal Ø30cm, acometidas Ø20cm
+- Operador: JMS | Fecha: Octubre 2024
 
-Coordenadas: Sistema UTM (ficticio para ejemplo)
-Operador: JMS (Juan Martínez Sánchez)
-Fechas: Primera pasada 15/10/2024, Segunda pasada 22/10/2024
+-------------------------------------------
+CASO 2: Red pluvial radial
+-------------------------------------------
+- 1 pozo central (P001) + 6 pozos periféricos (P002-P007)
+- Todos los pozos periféricos drenan hacia el centro
+- Topología simétrica tipo "estrella"
+- Todos los colectores Ø40cm
+- Operador: MGR | Fecha: Noviembre 2024
+
+============================================
+USO CON AUTOLISP
+============================================
+
+Estos archivos CSV están diseñados para ser procesados automáticamente
+por los comandos P1 (versiones v2.0, v2.1) que leen:
+
+1. PRIMERA_PASADA.txt → Obtiene coordenadas X,Y,Z de pozos
+2. SEGUNDA_PASADA.txt → Obtiene datos de tubos y caracterización
+
+El comando P1:
+- Carga ambos archivos CSV
+- Calcula cotas de tubos automáticamente
+- Guía al usuario para ajustar polilíneas 3D
+- Inserta bloques POZO/LA con atributos rellenos
+
+============================================
+COORDENADAS
+============================================
+
+Sistema: UTM (ficticias para ejemplos)
+Zona: 30N (simulada)
+Unidades: Metros
+
+Nota: Las coordenadas son ficticias pero mantienen proporciones
+y distancias realistas para fines de demostración y capacitación.
+
+============================================
